@@ -1,3 +1,9 @@
 [submodule "assets/lib"]
 	path = assets/lib
 	url = https://github.com/cotes2020/chirpy-static-assets.git
+[submodule "myblog/themes/LoveIt"]
+	path = myblog/themes/LoveIt
+	url = https://github.com/dillonzq/LoveIt.git
+[submodule "myblog/themes/FixIt"]
+	path = myblog/themes/FixIt
+	url = https://github.com/hugo-fixit/FixIt.git

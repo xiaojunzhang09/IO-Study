@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/WebPage" lang="zh-cn">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+    <meta name="robots" content="noodp" />
+    <title>01_虚拟文件系统,文件描述符,IO重定向 - 我的博客</title><meta name="author" content="">
+<meta name="description" content="这是我的技术博客"><meta name="keywords" content='draft'>
+  <meta itemprop="name" content="01_虚拟文件系统,文件描述符,IO重定向">
+  <meta itemprop="description" content="这是我的技术博客">
+  <meta itemprop="datePublished" content="2025-08-03T11:25:19+08:00">
+  <meta itemprop="dateModified" content="2025-08-03T11:25:19+08:00">
+  <meta itemprop="wordCount" content="861">
+  <meta itemprop="keywords" content="Draft"><meta property="og:url" content="http://localhost:1313/posts/5f4d35a/">
+  <meta property="og:site_name" content="我的博客">
+  <meta property="og:title" content="01_虚拟文件系统,文件描述符,IO重定向">
+  <meta property="og:description" content="这是我的技术博客">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-08-03T11:25:19+08:00">
+    <meta property="article:modified_time" content="2025-08-03T11:25:19+08:00">
+    <meta property="article:tag" content="Draft">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="01_虚拟文件系统,文件描述符,IO重定向">
+  <meta name="twitter:description" content="这是我的技术博客">
+<meta name="application-name" content="FixIt">
+<meta name="apple-mobile-web-app-title" content="FixIt"><meta name="theme-color" data-light="#f8f8f8" data-dark="#252627" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" type="text/html" href="http://localhost:1313/posts/5f4d35a/" title="01_虚拟文件系统,文件描述符,IO重定向 - 我的博客" /><link rel="prev" type="text/html" href="http://localhost:1313/posts/e2aee69/" title="Hello World" /><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" href="/lib/fontawesome-free/all.min.css" as="style" onload="this.removeAttribute('onload');this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/lib/fontawesome-free/all.min.css"></noscript><link rel="preload" href="/lib/animate/animate.min.css" as="style" onload="this.removeAttribute('onload');this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/lib/animate/animate.min.css"></noscript><script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "BlogPosting",
+    "headline": "01_虚拟文件系统,文件描述符,IO重定向",
+    "inLanguage": "zh-cn",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "http:\/\/localhost:1313\/posts\/5f4d35a\/"
+    },"genre": "posts","keywords": "draft","wordcount":  861 ,
+    "url": "http:\/\/localhost:1313\/posts\/5f4d35a\/","datePublished": "2025-08-03T11:25:19+08:00","dateModified": "2025-08-03T11:25:19+08:00","publisher": {
+      "@type": "Organization",
+      "name": ""},"description": ""
+  }
+  </script><script src="/js/head/color-scheme.min.js"></script></head>
+  <body data-header-desktop="sticky" data-header-mobile="auto"><div class="wrapper" data-page-style="normal"><header class="desktop animate__faster" id="header-desktop">
+  <div class="header-wrapper">
+    <div class="header-title">
+      <a href="/" title="我的博客"><span class="header-title-text">我的博客</span></a><span class="header-subtitle"></span></div>
+    <nav>
+      <ul class="menu"><li class="menu-item">
+              <a class="menu-link" href="/archives/"><i class="fa-solid fa-archive fa-fw fa-sm" aria-hidden="true"></i> Archives</a></li><li class="menu-item">
+              <a class="menu-link" href="/categories/"><i class="fa-solid fa-folder-tree fa-fw fa-sm" aria-hidden="true"></i> Categories</a></li><li class="menu-item">
+              <a class="menu-link" href="/tags/"><i class="fa-solid fa-tags fa-fw fa-sm" aria-hidden="true"></i> Tags</a></li><li class="menu-item delimiter"></li><li class="menu-item theme-switch" title="Switch Theme">
+          <i class="fa-solid fa-adjust fa-fw" aria-hidden="true"></i>
+        </li></ul>
+    </nav>
+  </div>
+</header><header class="mobile animate__faster" id="header-mobile">
+  <div class="header-container">
+    <div class="header-wrapper">
+      <div class="header-title">
+        <a href="/" title="我的博客"><span class="header-title-text">我的博客</span></a><span class="header-subtitle"></span></div>
+      <div class="menu-toggle" id="menu-toggle-mobile">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+    <nav>
+      <ul class="menu" id="menu-mobile"><li class="menu-item"><a class="menu-link" href="/archives/"><i class="fa-solid fa-archive fa-fw fa-sm" aria-hidden="true"></i> Archives</a></li><li class="menu-item"><a class="menu-link" href="/categories/"><i class="fa-solid fa-folder-tree fa-fw fa-sm" aria-hidden="true"></i> Categories</a></li><li class="menu-item"><a class="menu-link" href="/tags/"><i class="fa-solid fa-tags fa-fw fa-sm" aria-hidden="true"></i> Tags</a></li><li class="menu-item menu-system">
+          <span class="menu-system-item theme-switch" title="Switch Theme"><i class="fa-solid fa-adjust fa-fw" aria-hidden="true"></i></span></li>
+      </ul>
+    </nav>
+  </div>
+</header><main class="container"><aside class="aside-collection animate__animated animate__fadeIn animate__faster" aria-label="Collections"></aside>
+
+  <article class="page single">
+    <div class="header"><h1 class="single-title animate__animated animate__flipInX"><span title="Repost" class="icon-repost"><i class="fa-solid fa-share fa-fw" aria-hidden="true"></i></span><span>01_虚拟文件系统,文件描述符,IO重定向</span>
+      </h1></div><div class="post-meta">
+      <div class="post-meta-line"><span class="post-author"><span class="author"><i class="fa-solid fa-user-circle" aria-hidden="true"></i>
+      Anonymous</span></span><span class="post-included-in">&nbsp;included in <a href="/categories/draft/" class="post-category" title="Category - Draft"><i class="fa-regular fa-folder fa-fw" aria-hidden="true"></i> Draft</a></span></div><div class="post-meta-line"><span title="published on 2025-08-03 11:25:19"><i class="fa-solid fa-calendar-days fa-fw me-1" aria-hidden="true"></i><time datetime="2025-08-03">2025-08-03</time></span>&nbsp;<span title="861 words"><i class="fa-solid fa-pencil-alt fa-fw me-1" aria-hidden="true"></i>About 900 words</span>&nbsp;<span><i class="fa-regular fa-clock fa-fw me-1" aria-hidden="true"></i>5 minutes</span>&nbsp;</div>
+    </div><div class="details toc" id="toc-static" data-kept="false">
+        <div class="details-summary toc-title">
+          <span>Contents</span>
+          <span><i class="details-icon fa-solid fa-angle-right" aria-hidden="true"></i></span>
+        </div>
+        <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#-1-各自定义与作用">🔍 1. 各自定义与作用</a>
+      <ul>
+        <li><a href="#-vfsvirtual-file-system虚拟文件系统">✅ VFS（Virtual File System）虚拟文件系统</a></li>
+        <li><a href="#-fdfile-descriptor文件描述符">✅ FD（File Descriptor）文件描述符</a></li>
+        <li><a href="#-pagecache页缓存">✅ PageCache（页缓存）</a></li>
+        <li><a href="#-kernellinux-内核">✅ Kernel（Linux 内核）</a></li>
+      </ul>
+    </li>
+    <li><a href="#-2-它们之间的关系从调用链角度">🔁 2. 它们之间的关系（从调用链角度）</a>
+      <ul>
+        <li><a href="#-用户进程访问文件数据流程简化版">🌐 用户进程访问文件数据流程（简化版）：</a></li>
+      </ul>
+    </li>
+    <li><a href="#-简明逻辑链总结">📌 简明逻辑链总结</a></li>
+    <li><a href="#-举个例子帮助理解">📌 举个例子帮助理解</a></li>
+    <li><a href="#-拓展理解">🧠 拓展理解</a>
+      <ul>
+        <li><a href="#-理解-linux-内核资源结构配合-procsysvmstat">🧠 理解 Linux 内核资源结构（配合 /proc、/sys、vmstat）：</a></li>
+      </ul>
+    </li>
+    <li><a href="#-典型命令实地查看">🧪 典型命令实地查看</a>
+      <ul>
+        <li><a href="#1-proc虚拟内存和进程信息从内核导出">1. <code>/proc</code>：虚拟内存和进程信息（从内核导出）</a>
+          <ul>
+            <li><a href="#-结构示意">💡 结构示意</a></li>
+            <li><a href="#-示例">🔍 示例</a></li>
+          </ul>
+        </li>
+        <li><a href="#2-sysfs内核子系统的配置接口">2. <code>/sys/fs</code>：内核子系统的配置接口</a></li>
+        <li><a href="#3-vmstat动态内存--swap--io-状态">3. <code>vmstat</code>：动态内存 &amp; swap &amp; IO 状态</a>
+          <ul>
+            <li><a href="#-输出示意">🧾 输出示意</a></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li><a href="#-可视化建议ascii-风格">📊 可视化建议（ASCII 风格）</a>
+      <ul>
+        <li><a href="#linux-虚拟内存结构">Linux 虚拟内存结构：</a></li>
+        <li><a href="#-示例实战查看当前系统负载和内存健康度">🚀 示例实战：查看当前系统负载和内存健康度</a></li>
+      </ul>
+    </li>
+    <li><a href="#-小结">✅ 小结</a></li>
+  </ul>
+</nav></div>
+      </div><div class="content" id="content"><p><strong>VFS、FD、PageCache、Kernel</strong> 是 Linux 内核 I/O 子系统中非常核心的几个概念，它们彼此之间有明确的逻辑关系。下面我将逐一解释，并结合一个整体视角说明它们之间的关系。</p>
+<hr>
+<h2 class="heading-element" id="-1-各自定义与作用"><span>🔍 1. 各自定义与作用</span>
+  <a href="#-1-%e5%90%84%e8%87%aa%e5%ae%9a%e4%b9%89%e4%b8%8e%e4%bd%9c%e7%94%a8" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><h3 class="heading-element" id="-vfsvirtual-file-system虚拟文件系统"><span>✅ VFS（Virtual File System）虚拟文件系统</span>
+  <a href="#-vfsvirtual-file-system%e8%99%9a%e6%8b%9f%e6%96%87%e4%bb%b6%e7%b3%bb%e7%bb%9f" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><ul>
+<li>VFS 是 Linux 提供的<strong>统一的文件系统抽象接口层</strong>。</li>
+<li>不管你是用的是 ext4、xfs 还是 nfs，VFS 提供了统一的操作接口，比如 open、read、write、close。</li>
+<li>作用：<strong>屏蔽不同底层文件系统实现差异</strong>，对上层（如用户程序）提供一致的 API。</li>
+</ul>
+<hr>
+<h3 class="heading-element" id="-fdfile-descriptor文件描述符"><span>✅ FD（File Descriptor）文件描述符</span>
+  <a href="#-fdfile-descriptor%e6%96%87%e4%bb%b6%e6%8f%8f%e8%bf%b0%e7%ac%a6" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><ul>
+<li>FD 是用户态访问文件、socket、管道等资源的<strong>索引句柄</strong>。</li>
+<li>每当你 <code>open()</code> 一个文件，内核会返回一个 FD（整数）。</li>
+<li>FD 本质是进程级的一个整数索引，指向 <code>struct file*</code> 结构体。</li>
+<li>是用户空间进入 VFS 层的<strong>入口</strong>。</li>
+</ul>
+<hr>
+<h3 class="heading-element" id="-pagecache页缓存"><span>✅ PageCache（页缓存）</span>
+  <a href="#-pagecache%e9%a1%b5%e7%bc%93%e5%ad%98" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><ul>
+<li>是 Linux 内核中一块用于缓存<strong>文件数据页</strong>的内存区域。</li>
+<li>当你通过 <code>read()</code> 读取文件时，数据先从 PageCache 查找，<strong>命中则避免磁盘 I/O</strong>，加速访问。</li>
+<li>当写文件时，也先写入 PageCache，之后由内核后台 <code>flush</code> 到磁盘（写回机制）。</li>
+<li>属于 Linux 的 <strong>统一缓存机制（unified page cache）</strong>。</li>
+</ul>
+<hr>
+<h3 class="heading-element" id="-kernellinux-内核"><span>✅ Kernel（Linux 内核）</span>
+  <a href="#-kernellinux-%e5%86%85%e6%a0%b8" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><ul>
+<li>Kernel 是整个系统的<strong>核心管理层</strong>，VFS、PageCache、内存、进程调度、I/O 子系统等都运行在其中。</li>
+<li>Kernel 提供系统调用（syscall）接口让用户空间进程访问资源。</li>
+<li>VFS、PageCache、FD 都是 Kernel 模块的组成部分。</li>
+</ul>
+<hr>
+<h2 class="heading-element" id="-2-它们之间的关系从调用链角度"><span>🔁 2. 它们之间的关系（从调用链角度）</span>
+  <a href="#-2-%e5%ae%83%e4%bb%ac%e4%b9%8b%e9%97%b4%e7%9a%84%e5%85%b3%e7%b3%bb%e4%bb%8e%e8%b0%83%e7%94%a8%e9%93%be%e8%a7%92%e5%ba%a6" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><h3 class="heading-element" id="-用户进程访问文件数据流程简化版"><span>🌐 用户进程访问文件数据流程（简化版）：</span>
+  <a href="#-%e7%94%a8%e6%88%b7%e8%bf%9b%e7%a8%8b%e8%ae%bf%e9%97%ae%e6%96%87%e4%bb%b6%e6%95%b0%e6%8d%ae%e6%b5%81%e7%a8%8b%e7%ae%80%e5%8c%96%e7%89%88" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><pre tabindex="0"><code>
+用户态程序
+   |
+open(&#34;file.txt&#34;) → 得到 FD（如 3）
+   |
+read(fd, buf, size) → 调用 syscall
+   |
+⬇
+[Linux Kernel]
+   |
+→ 通过 FD 查找 struct file*
+   |
+→ VFS 层处理：根据文件系统类型（ext4/xfs/nfs）调用对应实现
+   |
+→ 查找页缓存（PageCache）是否有该页
+    ├─✅ 命中 → 从内存读取 → 返回给用户
+    └─❌ 未命中 → 发起 block device I/O（从磁盘读取）→ 填充 PageCache → 返回数据</code></pre><hr>
+<h2 class="heading-element" id="-简明逻辑链总结"><span>📌 简明逻辑链总结</span>
+  <a href="#-%e7%ae%80%e6%98%8e%e9%80%bb%e8%be%91%e9%93%be%e6%80%bb%e7%bb%93" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><table>
+  <thead>
+      <tr>
+          <th>概念</th>
+          <th>所属层级</th>
+          <th>主要作用</th>
+          <th>与其他组件关系</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>FD</strong></td>
+          <td>用户态 / 内核</td>
+          <td>用户访问文件的句柄（索引）</td>
+          <td>指向内核 <code>file*</code> 结构体，通过它进入 VFS</td>
+      </tr>
+      <tr>
+          <td><strong>VFS</strong></td>
+          <td>内核</td>
+          <td>提供统一文件访问抽象接口</td>
+          <td>接收来自 FD 的请求，路由到实际文件系统</td>
+      </tr>
+      <tr>
+          <td><strong>PageCache</strong></td>
+          <td>内核</td>
+          <td>文件数据的缓存层，提升 I/O 性能</td>
+          <td>被 VFS 层查询或更新，缓存数据页</td>
+      </tr>
+      <tr>
+          <td><strong>Kernel</strong></td>
+          <td>内核</td>
+          <td>承载一切管理功能</td>
+          <td>容纳并调度所有组件，如 VFS、PageCache、block I/O</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 class="heading-element" id="-举个例子帮助理解"><span>📌 举个例子帮助理解</span>
+  <a href="#-%e4%b8%be%e4%b8%aa%e4%be%8b%e5%ad%90%e5%b8%ae%e5%8a%a9%e7%90%86%e8%a7%a3" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><p>你运行以下代码：</p>
+<pre tabindex="0"><code>c
+
+
+
+int fd = open(&#34;a.txt&#34;, O_RDONLY);
+char buf[100];
+read(fd, buf, 100);</code></pre><p>发生了什么？</p>
+<ol>
+<li><code>open()</code> → Kernel 创建 <code>file*</code>，返回 FD；</li>
+<li><code>read()</code> → 根据 FD 找到 <code>file*</code>；</li>
+<li>VFS → 确认该文件属于 ext4；</li>
+<li>查 PageCache 看有没有数据页；</li>
+<li>没有的话 → 发起 disk read → 填 PageCache；</li>
+<li>将数据拷贝到 <code>buf[]</code>；</li>
+<li>用户态读取完成。</li>
+</ol>
+<hr>
+<h2 class="heading-element" id="-拓展理解"><span>🧠 拓展理解</span>
+  <a href="#-%e6%8b%93%e5%b1%95%e7%90%86%e8%a7%a3" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><table>
+  <thead>
+      <tr>
+          <th>类别</th>
+          <th>关键点</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>异步写</td>
+          <td>写数据时不会立刻写磁盘，而是写到 PageCache，稍后 flush</td>
+      </tr>
+      <tr>
+          <td>Direct I/O</td>
+          <td>绕过 PageCache，直接对 block device 进行 I/O</td>
+      </tr>
+      <tr>
+          <td>mmap 映射文件</td>
+          <td>也是通过 PageCache 映射页访问文件</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<p>结合 Linux 系统的 <code>/proc</code>、<code>/sys/fs</code>、<code>vmstat</code> 等命令来查看内存、文件系统、虚拟内存和进程调度等关键内核结构的“实地状态”。</p>
+<hr>
+<h3 class="heading-element" id="-理解-linux-内核资源结构配合-procsysvmstat"><span>🧠 理解 Linux 内核资源结构（配合 /proc、/sys、vmstat）：</span>
+  <a href="#-%e7%90%86%e8%a7%a3-linux-%e5%86%85%e6%a0%b8%e8%b5%84%e6%ba%90%e7%bb%93%e6%9e%84%e9%85%8d%e5%90%88-procsysvmstat" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><pre tabindex="0"><code>lua
+
+
++----------------------------+
+|        应用用户层         |
++-------------+--------------+
+              |
+              v
++-------------+--------------+
+|        Linux 内核层        |
+|                            |
+|  +---------+   +---------+ |
+|  | 进程调度 |   | 内存管理 | &lt;--- /proc/[pid]/sched, /proc/meminfo
+|  +---------+   +---------+ |
+|      |              |      |
+|      v              v      |
+|  +--------+     +--------+ |
+|  | /proc  |     | /sys/fs| &lt;--- 虚拟文件系统接口，供用户态读取系统信息
+|  +--------+     +--------+ |
++----------------------------+</code></pre><hr>
+<h2 class="heading-element" id="-典型命令实地查看"><span>🧪 典型命令实地查看</span>
+  <a href="#-%e5%85%b8%e5%9e%8b%e5%91%bd%e4%bb%a4%e5%ae%9e%e5%9c%b0%e6%9f%a5%e7%9c%8b" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><h3 class="heading-element" id="1-proc虚拟内存和进程信息从内核导出"><span>1. <code>/proc</code>：虚拟内存和进程信息（从内核导出）</span>
+  <a href="#1-proc%e8%99%9a%e6%8b%9f%e5%86%85%e5%ad%98%e5%92%8c%e8%bf%9b%e7%a8%8b%e4%bf%a1%e6%81%af%e4%bb%8e%e5%86%85%e6%a0%b8%e5%af%bc%e5%87%ba" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><h4 class="heading-element" id="-结构示意"><span>💡 结构示意</span>
+  <a href="#-%e7%bb%93%e6%9e%84%e7%a4%ba%e6%84%8f" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h4><pre tabindex="0"><code>
+
+
+/proc
+├── meminfo           ← 内存使用情况
+├── vmstat            ← 虚拟内存统计
+├── loadavg           ← 系统负载
+├── [pid]/
+│   ├── status        ← 单个进程状态
+│   ├── sched         ← 调度器统计
+│   └── cmdline       ← 启动命令</code></pre><h4 class="heading-element" id="-示例"><span>🔍 示例</span>
+  <a href="#-%e7%a4%ba%e4%be%8b" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h4><pre tabindex="0"><code>
+
+
+
+cat /proc/meminfo | head
+makefile
+
+
+MemTotal:       16338044 kB
+MemFree:         1305428 kB
+Buffers:          384684 kB
+Cached:         10674876 kB
+SwapTotal:       2097148 kB
+SwapFree:        2097148 kB
+
+
+
+
+cat /proc/1/status  # 查看 PID=1 的进程状态</code></pre><hr>
+<h3 class="heading-element" id="2-sysfs内核子系统的配置接口"><span>2. <code>/sys/fs</code>：内核子系统的配置接口</span>
+  <a href="#2-sysfs%e5%86%85%e6%a0%b8%e5%ad%90%e7%b3%bb%e7%bb%9f%e7%9a%84%e9%85%8d%e7%bd%ae%e6%8e%a5%e5%8f%a3" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><ul>
+<li><code>/sys/fs/cgroup</code>: 控制组 (cgroup) 子系统的挂载点，展示进程组资源限制</li>
+<li><code>/sys/fs/bpf</code>: BPF 程序和 map 信息</li>
+</ul>
+<pre tabindex="0"><code>
+
+tree /sys/fs/cgroup -L 2</code></pre><p>可见 CPU、memory、io 限制情况。</p>
+<hr>
+<h3 class="heading-element" id="3-vmstat动态内存--swap--io-状态"><span>3. <code>vmstat</code>：动态内存 &amp; swap &amp; IO 状态</span>
+  <a href="#3-vmstat%e5%8a%a8%e6%80%81%e5%86%85%e5%ad%98--swap--io-%e7%8a%b6%e6%80%81" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><pre tabindex="0"><code>
+vmstat 1 5</code></pre><h4 class="heading-element" id="-输出示意"><span>🧾 输出示意</span>
+  <a href="#-%e8%be%93%e5%87%ba%e7%a4%ba%e6%84%8f" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h4><pre tabindex="0"><code>
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0  53020  31124 824204    0    0     1     2    3    6  1  0 99  0  0</code></pre><p>字段解释：</p>
+<ul>
+<li><code>r</code>: 可运行进程数量（run queue）</li>
+<li><code>si/so</code>: swap in/out</li>
+<li><code>us/sy</code>: 用户/系统态 CPU 使用率</li>
+<li><code>wa</code>: IO 等待时间</li>
+</ul>
+<hr>
+<h2 class="heading-element" id="-可视化建议ascii-风格"><span>📊 可视化建议（ASCII 风格）</span>
+  <a href="#-%e5%8f%af%e8%a7%86%e5%8c%96%e5%bb%ba%e8%ae%aeascii-%e9%a3%8e%e6%a0%bc" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><h3 class="heading-element" id="linux-虚拟内存结构"><span>Linux 虚拟内存结构：</span>
+  <a href="#linux-%e8%99%9a%e6%8b%9f%e5%86%85%e5%ad%98%e7%bb%93%e6%9e%84" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><pre tabindex="0"><code>pgsql
+
+
+
++--------------------------+
+|         内核空间         |
++--------------------------+
+|         用户空间         |
+|  +--------+             |
+|  | Stack  | ← 向下增长    |
+|  +--------+             |
+|  | Heap   | ← 向上增长    |
+|  +--------+             |
+|  | Data   |             |
+|  +--------+             |
+|  | Text   |             |
++--------------------------+</code></pre><hr>
+<h3 class="heading-element" id="-示例实战查看当前系统负载和内存健康度"><span>🚀 示例实战：查看当前系统负载和内存健康度</span>
+  <a href="#-%e7%a4%ba%e4%be%8b%e5%ae%9e%e6%88%98%e6%9f%a5%e7%9c%8b%e5%bd%93%e5%89%8d%e7%b3%bb%e7%bb%9f%e8%b4%9f%e8%bd%bd%e5%92%8c%e5%86%85%e5%ad%98%e5%81%a5%e5%ba%b7%e5%ba%a6" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h3><pre tabindex="0"><code>
+
+
+
+cat /proc/loadavg</code></pre><p>输出：</p>
+<pre tabindex="0"><code>yaml
+
+
+
+0.05 0.03 0.01 1/135 1342</code></pre><p>表示最近 1、5、15 分钟负载；<code>1/135</code> 表示正在运行的线程数/总线程数。</p>
+<hr>
+<h2 class="heading-element" id="-小结"><span>✅ 小结</span>
+  <a href="#-%e5%b0%8f%e7%bb%93" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><table>
+  <thead>
+      <tr>
+          <th>工具/目录</th>
+          <th>查看内容</th>
+          <th>常用命令示例</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>/proc</code></td>
+          <td>内核导出的运行时信息</td>
+          <td><code>cat /proc/meminfo</code>、<code>cat /proc/[pid]/status</code></td>
+      </tr>
+      <tr>
+          <td><code>/sys/fs</code></td>
+          <td>文件系统、cgroup、BPF 等接口</td>
+          <td><code>tree /sys/fs/cgroup</code></td>
+      </tr>
+      <tr>
+          <td><code>vmstat</code></td>
+          <td>运行时资源状态快照</td>
+          <td><code>vmstat 1 5</code></td>
+      </tr>
+  </tbody>
+</table>
+<h2 class="heading-element" id="其他笔记"><span>其他笔记</span>
+  <a href="#%e5%85%b6%e4%bb%96%e7%ac%94%e8%ae%b0" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><p>查看文件源信息</p>
+<pre tabindex="0"><code>[rust@localhost ~]$ stat ooxx.txt
+  File: ‘ooxx.txt’
+  Size: 0         	Blocks: 0          IO Block: 4096   regular empty file
+Device: 803h/2051d	Inode: 2554752     Links: 1
+Access: (0664/-rw-rw-r--)  Uid: ( 1000/    rust)   Gid: ( 1000/    rust)
+Context: unconfined_u:object_r:user_home_t:s0
+Access: 2025-05-17 22:00:33.642686670 -0700
+Modify: 2025-05-17 22:00:33.642686670 -0700
+Change: 2025-05-17 22:00:33.642686670 -0700
+
+#软链接 Inode 不一样
+[rust@localhost ~]$ ln -s ooxx.txt zxj.txt
+[rust@localhost ~]$ ll
+total 0
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Desktop
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Documents
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Downloads
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Music
+-rw-rw-r--. 1 rust rust 0 May 17 22:00 ooxx.txt
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Pictures
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Public
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Templates
+drwxr-xr-x. 2 rust rust 6 May 17 09:17 Videos
+lrwxrwxrwx. 1 rust rust 8 Aug  2 21:35 zxj.txt -&gt; ooxx.txt</code></pre><pre tabindex="0"><code># 1. 创建镜像
+dd if=/dev/zero of=mydisk.img bs=1M count=100
+
+# 2. 关联 loop 设备（系统自动选）
+sudo losetup -fP mydisk.img
+
+# 3. 查看哪个 loop 设备关联上了
+losetup -a
+
+# 假设是 /dev/loop0，执行格式化
+sudo mkfs.ext4 /dev/loop0
+
+# 4. 创建挂载点
+mkdir ~/mnt/mydisk
+
+# 5. 挂载
+sudo mount /dev/loop0 ~/mnt/mydisk
+
+# 6. 查看挂载状态
+mount | grep mydisk
+
+# 7. 进入文件系统
+cd ~/mnt/mydisk</code></pre><pre tabindex="0"><code>[rust@localhost ~]$ lsof -p $$
+COMMAND   PID USER   FD   TYPE DEVICE  SIZE/OFF     NODE NAME
+    12591 rust  cwd    DIR    8,3      4096       70 /home/rust
+    12591 rust  rtd    DIR    8,3       224       64 /
+    12591 rust  txt    REG    8,3    964608 50417832 /usr/bin/
+    12591 rust  mem    REG    8,3     61624   146973 /usr/lib64/libnss_files-2.17.so
+    12591 rust  mem    REG    8,3 106075056 17098588 /usr/lib/locale/locale-archive
+    12591 rust  mem    REG    8,3   2151672   146955 /usr/lib64/libc-2.17.so
+    12591 rust  mem    REG    8,3     19288   146961 /usr/lib64/libdl-2.17.so
+    12591 rust  mem    REG    8,3    174576   167495 /usr/lib64/libtinfo.so.5.9
+    12591 rust  mem    REG    8,3    163400   146948 /usr/lib64/ld-2.17.so
+    12591 rust  mem    REG    8,3     26254 33901061 /usr/lib64/gconv/gconv-modules.cache
+    12591 rust    0u   CHR  136,2       0t0        5 /dev/pts/2
+    12591 rust    1u   CHR  136,2       0t0        5 /dev/pts/2
+    12591 rust    2u   CHR  136,2       0t0        5 /dev/pts/2
+    12591 rust  255u   CHR  136,2       0t0        5 /dev/pts/2</code></pre><h2 class="heading-element" id="流程图"><span>流程图</span>
+  <a href="#%e6%b5%81%e7%a8%8b%e5%9b%be" class="heading-mark">
+    <svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+  </a>
+</h2><p><a href="https://www.processon.com/diagraming/6820d4975af9ec6a21e8b3a1"target="_blank" rel="external nofollow noopener noreferrer">https://www.processon.com/diagraming/6820d4975af9ec6a21e8b3a1</a></p></div><div class="post-footer" id="post-footer">
+  <div class="post-info">
+    <div class="post-info-line">
+      <div class="post-info-mod">
+        <span title="Updated on 2025-08-03 11:25:19">Updated on 2025-08-03&nbsp;</span>
+      </div></div><div class="post-info-line">
+        <div class="post-info-md"><span><a href="vscode://file//Users/rust/work/study/IO/IO-Study/myblog/content/posts/01_%e8%99%9a%e6%8b%9f%e6%96%87%e4%bb%b6%e7%b3%bb%e7%bb%9f,%e6%96%87%e4%bb%b6%e6%8f%8f%e8%bf%b0%e7%ac%a6,IO%e9%87%8d%e5%ae%9a%e5%90%91.md" title="Open in editor"target="_blank" rel="external nofollow noopener noreferrer" class="link-to-vscode">Open in editor</a></span></div>
+        <div class="post-info-share">
+          <span><a href="javascript:void(0);" title="Share on X" data-sharer="twitter" data-url="http://localhost:1313/posts/5f4d35a/" data-title="01_虚拟文件系统,文件描述符,IO重定向" data-hashtags="draft"><i class="fa-brands fa-x-twitter fa-fw" aria-hidden="true"></i></a>
+  <a href="javascript:void(0);" title="Share on Facebook" data-sharer="facebook" data-url="http://localhost:1313/posts/5f4d35a/" data-hashtag="draft"><i class="fa-brands fa-facebook-square fa-fw" aria-hidden="true"></i></a>
+  <a href="javascript:void(0);" title="Share on 微博" data-sharer="weibo" data-url="http://localhost:1313/posts/5f4d35a/" data-title="01_虚拟文件系统,文件描述符,IO重定向"><i class="fa-brands fa-weibo fa-fw" aria-hidden="true"></i></a>
+  </span>
+        </div>
+      </div></div>
+
+  <div class="post-info-more">
+    <section class="post-tags"><i class="fa-solid fa-tags fa-fw me-1" aria-hidden="true"></i><a href="/tags/draft/" class="post-tag" title="Tags - Draft">Draft</a></section>
+    <section>
+      <span><a href="javascript:void(0);" onclick="window.history.back();">Back</a></span>&nbsp;|&nbsp;<span><a href="/">Home</a></span>
+    </section>
+  </div><div class="post-nav"><a href="/posts/e2aee69/" class="post-nav-item" rel="prev" title="Hello World"><i class="fa-solid fa-angle-left fa-fw" aria-hidden="true"></i>Hello World</a></div>
+</div>
+</article>
+
+  <aside class="toc" id="toc-auto" aria-label="Contents"><h2 class="toc-title">Contents&nbsp;<i class="toc-icon fa-solid fa-angle-down fa-fw" aria-hidden="true"></i></h2>
+      <div class="toc-content" id="toc-content-auto"></div></aside></main><footer class="footer">
+    <div class="footer-container"><div class="footer-line powered">Powered by <a href="https://gohugo.io/" target="_blank" rel="external nofollow noopener noreferrer" title="Hugo 0.148.2"><img class="hugo-icon" src="/images/hugo.min.svg" alt="Hugo logo" /> Hugo</a> | Theme - <a href="https://github.com/hugo-fixit/FixIt" target="_blank" rel="external" title="FixIt v0.4.0-alpha-20250721024521-a1cd700b"><img class="fixit-icon" src="/images/fixit.min.svg" alt="FixIt logo" /> FixIt</a>
+        </div><div class="footer-line copyright" itemscope itemtype="http://schema.org/CreativeWork"><i class="fa-regular fa-copyright fa-fw" aria-hidden="true"></i>
+            <span itemprop="copyrightYear">2025</span><span class="author" itemprop="copyrightHolder">
+              <a href="https://github.com/zhangsan"target="_blank" rel="external nofollow noopener noreferrer">张三</a></span></div></div>
+  </footer></div><div class="widgets"><div class="fixed-buttons animate__faster d-none"><div class="fixed-button back-to-top" role="button" aria-label="Back to Top"><i class="fa-solid fa-arrow-up fa-fw" aria-hidden="true"></i><span class="variant-numeric d-none">0%</span>
+        </div></div><div id="mask"></div><noscript>
+    <div class="noscript-warning">This website works best with JavaScript enabled.</div>
+  </noscript>
+</div><link rel="stylesheet" href="/lib/cookieconsent/cookieconsent.min.css"><script src="/lib/sharer/sharer.min.js" async defer></script><script src="/lib/cookieconsent/cookieconsent.min.js" defer></script><script>window.config={"code":{"copyTitle":"Copy to clipboard","editLockTitle":"Lock editable code block","editUnLockTitle":"Unlock editable code block","editable":true,"maxShownLines":10},"comment":{"enable":false},"cookieconsent":{"content":{"dismiss":"Got it!","link":"Learn more","message":"This website uses Cookies to improve your experience."},"enable":true,"palette":{"button":{"background":"#f0f0f0"},"popup":{"background":"#1aa3ff"}},"theme":"edgeless"},"version":"v0.4.0-alpha-20250721024521-a1cd700b"};console.log('Page config:', window.config);</script><script src="/js/theme.min.js" defer></script></body>
+</html>
